@@ -38,14 +38,18 @@ class Block {
     validate() {
         let self = this;
         return new Promise((resolve, reject) => {
-            // Save in auxiliary variable the current block hash
-                                            
-            // Recalculate the hash of the Block
-            // Comparing if the hashes changed
-            // Returning the Block is not valid
             
-            // Returning the Block is valid
-
+                // Save in auxiliary variable the current block hash
+                const currentHash = self.hash                                
+                // Recalculate the hash of the Block
+                const newHash = SHA256(JSON.stringify(self)).toString()
+                // Comparing if the hashes changed
+                // Returning the Block is not valid
+                if(currentHash != newHash) {
+                    reject(new Error(`Wrong hash: ${currentHash} is not equal to ${newHash}`))
+                }
+                // Returning the Block is valid
+                resolve(currentHash === newHash)
         });
     }
 
@@ -59,11 +63,24 @@ class Block {
      *     or Reject with an error.
      */
     getBData() {
-        // Getting the encoded data saved in the Block
-        // Decoding the data to retrieve the JSON representation of the object
-        // Parse the data to an object to be retrieve.
-
-        // Resolve with the data if the object isn't the Genesis block
+        let self = this;
+        return new Promise(async (resolve, reject) => {
+            if (self.height == 0) {
+                resolve("This is the Genesis Block");
+            }
+            // Getting the encoded data saved in the Block
+            let encodedData = this.body;
+            // Decoding the data to retrieve the JSON representation of the object
+            let decodedData = hex2ascii(encodedData);
+            // Parse the data to an object to be retrieve.
+            let dataObject = JSON.parse(decodedData);
+            // Resolve with the data if the object isn't the Genesis block
+            if (dataObject) {
+                resolve(dataObject);
+            } else {
+                reject(Error("No data in this Block."))
+            }
+        });
 
     }
 

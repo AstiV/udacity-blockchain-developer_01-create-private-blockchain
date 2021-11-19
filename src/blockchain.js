@@ -64,8 +64,34 @@ class Blockchain {
     _addBlock(block) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-           
-        });
+            let height = self.height
+            
+            if (height < -1) {
+                reject('Error: Height is smaller -1')
+            } else {
+                if(height === -1) {
+                    // Genesis Block
+                    block.height = 0
+                } else {
+                    block.height = height + 1;
+                    block.previousBlockHash = self.chain[height].hash;
+                }
+
+                block.time = new Date().getTime().toString().slice(0,-3);
+                block.hash = SHA256(JSON.stringify(block)).toString();
+
+                self.chain.push(block);
+                self.height++;
+
+                // execute the validateChain() function every time a block is added
+                if (!self.validateChain()) {
+                    self.removeBlock()
+                    reject('Invalid Chain');        
+                } else {
+                    resolve(block);
+                }                
+            }
+        })
     }
 
     /**
