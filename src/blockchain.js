@@ -96,7 +96,7 @@ class Blockchain {
 
     /**
      * The requestMessageOwnershipVerification(address) method
-     * will allow you  to request a message that you will use to
+     * will allow you to request a message that you will use to
      * sign it with your Bitcoin Wallet (Electrum or Bitcoin Core)
      * This is the first step before submit your Block.
      * The method return a Promise that will resolve with the message to be signed
@@ -104,7 +104,8 @@ class Blockchain {
      */
     requestMessageOwnershipVerification(address) {
         return new Promise((resolve) => {
-            
+            let message = `${address}:${new Date().getTime().toString().slice(0,-3)}:starRegistry`;
+            resolve(message);
         });
     }
 
@@ -128,7 +129,21 @@ class Blockchain {
     submitStar(address, message, signature, star) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-            
+            let time = parseInt(message.split(':')[1]);
+            let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
+            if((time + (5*60*1000)) >= currentTime){
+                // verify the signature
+                let isValid = bitcoinMessage.verify(message, address, signature);
+                if(isValid){
+                    let block = new BlockClass.Block({owner: address, star: star});
+                    let addedBlock = await self._addBlock(block);
+                    resolve(addedBlock);
+                } else {
+                    reject('Your signature is not valid');
+                }
+            } else {
+                reject('Sorry, the submission of your star timed out :(');
+            }
         });
     }
 
@@ -141,6 +156,12 @@ class Blockchain {
     getBlockByHash(hash) {
         let self = this;
         return new Promise((resolve, reject) => {
+            let block = self.chain.filter(p => p.hash === hash)[0];
+            if(block){
+                resolve(block);
+            } else {
+                resolve(null);
+            }
            
         });
     }
@@ -172,7 +193,13 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise((resolve, reject) => {
-            
+            self.chain.forEach(async (block) => {
+                let data = await block.getBData();
+                if(data && data.owner === address) {
+                        stars.push(data);
+                }
+            });
+            resolve(stars);
         });
     }
 
@@ -186,10 +213,31 @@ class Blockchain {
         let self = this;
         let errorLog = [];
         return new Promise(async (resolve, reject) => {
-            
+            let promises = [];
+            let chainIndex = 0;
+            self.chain.forEach(block => {
+                promises.push(block.validate());
+                if(block.height > 0) {
+                    let previousBlockHash = block.previousBlockHash;
+                    let blockHash = self.chain[chainIndex-1].hash;
+                    if(blockHash != previousBlockHash){
+                        errorLog.push(`Error - Block Heigh: ${block.height} - Previous Hash don't match.`);
+                    }
+                }
+                chainIndex++;
+            });
+            Promise.all(promises).then((results) => {
+                chainIndex = 0;
+                results.forEach(valid => {
+                    if(!valid){
+                        errorLog.push(`Error - Block Heigh: ${self.chain[chainIndex].height} - Has been Tampered.`);
+                    }
+                    chainIndex++;
+                });
+                resolve(errorLog);
+            }).catch((error) => { console.log(error); reject(error)});
         });
     }
-
 }
 
 module.exports.Blockchain = Blockchain;   
