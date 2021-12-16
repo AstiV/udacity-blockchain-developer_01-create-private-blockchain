@@ -84,12 +84,13 @@ class Blockchain {
                 self.height++;
 
                 // execute the validateChain() function every time a block is added
-                if (!self.validateChain()) {
+                const errors = await self.validateChain()
+                if (errors && errors.length) {
                     self.removeBlock()
-                    reject('Invalid Chain');        
+                    reject('Invalid Chain');
                 } else {
                     resolve(block);
-                }                
+                }            
             }
         })
     }
